@@ -247,6 +247,14 @@ const ClipboardIndicator = GObject.registerClass({
 
         return shortened;
     }
+    _truncate2 (string, length) {
+        let shortened = string;
+
+        if (shortened.length > length)
+            shortened = shortened.substring(0,length-1) + '...';
+
+        return shortened;
+    }
 
     _setEntryLabel (menuItem) {
         let buffer = menuItem.clipContents;
@@ -500,13 +508,15 @@ const ClipboardIndicator = GObject.registerClass({
 
             const itemIndex = registry.indexOf(text);
 
+            // show msg summary in bubble
+            let short_msg = that._truncate2(text, 256);
+
             if (itemIndex < 0) {
                 that._addEntry(text, false, true, false);
                 that._removeOldestEntries();
                 if (NOTIFY_ON_COPY) {
-                    that._showNotification(_("Copied to clipboard"), notif => {
-                        notif.addAction(_('Cancel'), that._cancelNotification.bind(that));
-                    });
+                    // my notify: copied
+                    that._show_popup(`Copied: ${short_msg}`, 2000);
                 }
             }
             else if (itemIndex >= 0 && itemIndex < registry.length) {
@@ -515,6 +525,11 @@ const ClipboardIndicator = GObject.registerClass({
 
                 if (!item.clipFavorite && MOVE_ITEM_FIRST) {
                     that._moveItemFirst(item);
+                }
+
+                if (NOTIFY_ON_COPY) {
+                    // my notify: item change
+                    that._show_popup(`Selected: ${short_msg}`, 2000);
                 }
             }
         }
@@ -636,6 +651,22 @@ const ClipboardIndicator = GObject.registerClass({
         else
             this._notifSource.showNotification(notification);
     }
+
+    _show_popup = (text, ms = 1000) => {
+        // TODO: use system style, or user customize
+        let msg = new St.Label({ text, style: 'background: #FFF; color: #000; padding: 4px 8px; border-radius: 4px;' });
+        Main.uiGroup.add_actor(msg);
+        msg.set_x_align(Clutter.ActorAlign.CENTER);
+        // msg.set_y_align(Clutter.ActorAlign.CENTER);
+        // msg.set_position(100, 100);
+        // TODO: calc free area, or user customize
+        msg.set_position(
+            Math.floor((global.stage.width - msg.width) / 2) + 300,
+            5, // Math.floor((global.stage.height - msg.height) / 2)
+        );
+        // log('=== CHEN: show_popup: ' + text); //should not log sensitive info
+        setTimeout(() => msg.destroy(), ms);
+    };
 
     _createHistoryLabel () {
         this._historyLabel = new St.Label({
