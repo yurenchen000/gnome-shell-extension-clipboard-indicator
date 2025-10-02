@@ -247,13 +247,22 @@ const ClipboardIndicator = GObject.registerClass({
 
         return shortened;
     }
-    _truncate2 (string, length) {
-        let shortened = string;
 
-        if (shortened.length > length)
-            shortened = shortened.substring(0,length-1) + '...';
-
-        return shortened;
+    //limit str in area cols x rows
+    // NOTE: not support CJK width char
+    _truncate2(str, cols, rows) {
+        let lines = str.split('\n', rows + 1);
+        //limit cols, add ... as needed
+        let out = lines.slice(0, rows).map(l =>
+            l.length > cols ? l.slice(0, cols - 1) + '…' : l
+        );
+        //limit rows, add ... as needed
+        if (lines.length > rows) {
+            let maxLen = out.reduce((m, l) => Math.max(m, l.length), 0);
+            let pad = Math.floor((maxLen - 1) / 2);
+            out[rows - 1] = ' '.repeat(pad) + '…';
+        }
+        return out.join('\n').trimEnd();
     }
 
     _setEntryLabel (menuItem) {
@@ -509,7 +518,7 @@ const ClipboardIndicator = GObject.registerClass({
             const itemIndex = registry.indexOf(text);
 
             // show msg summary in bubble
-            let short_msg = that._truncate2(text, 256);
+            let short_msg = that._truncate2(text, 100, 4);
 
             if (itemIndex < 0) {
                 that._addEntry(text, false, true, false);
@@ -659,6 +668,7 @@ const ClipboardIndicator = GObject.registerClass({
         msg.set_x_align(Clutter.ActorAlign.CENTER);
         // msg.set_y_align(Clutter.ActorAlign.CENTER);
         // msg.set_position(100, 100);
+
         // TODO: calc free area, or user customize
         msg.set_position(
             Math.floor((global.stage.width - msg.width) / 2) + 300,
